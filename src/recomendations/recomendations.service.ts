@@ -3,34 +3,19 @@ import { CreateRecomendationDto } from './dto/create-recomendation.dto';
 import { UpdateRecomendationDto } from './dto/update-recomendation.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
-import * as path from 'path';
 
 @Injectable()
 export class RecomendationsService {
   constructor(private prisma: PrismaService) {}
 
-  // Método para subir la imagen y devolver la URL completa
-  async uploadImage(file: Express.Multer.File): Promise<string> {
-    // Asegúrate de que la imagen se guarde en la carpeta 'uploads'
-    const filePath = `uploads/${file.filename}`;
-
-    // Aquí se crea la URL completa para acceder a la imagen
-    const imageUrl = `http://localhost:3000/${filePath}`;
-    return imageUrl;
-  }
-
-  // Método para crear una recomendación y almacenar la URL de la imagen
-  async createRecomendation(data: Omit<CreateRecomendationDto, 'idrecomendations'>, file: Express.Multer.File) {
-    // Obtener la URL completa de la imagen
-    const imgUrl = await this.uploadImage(file);
-
-    // Crear la recomendación con la URL de la imagen
+  // ✅ Método corregido para crear recomendación con imagen
+  async createRecomendation(data: Omit<CreateRecomendationDto, 'idrecomendations'>) {
     return this.prisma.recomendations.create({
       data: {
         title: data.title,
         description: data.description,
-        img: imgUrl, // Guardamos la URL de la imagen
-      } as Prisma.recomendationsUncheckedCreateInput, 
+        img: data.img, // 📌 Se guarda correctamente la URL en la base de datos
+      } as Prisma.recomendationsUncheckedCreateInput,
     });
   }
 

@@ -13,25 +13,26 @@ export class AuthService {
 
   async login({ email, password }: { email: string; password: string }, res: Response) {
     const admin = await this.prisma.admin.findUnique({ where: { email } });
-
+  
     if (!admin) throw new UnauthorizedException('Invalid email or password');
-
+  
     const isPasswordValid = await bcrypt.compare(password, admin.password);
     if (!isPasswordValid) throw new UnauthorizedException('Invalid email or password');
-
+  
     const token = this.jwtService.sign({ id: admin.idadmin, email: admin.email });
-
-    // Guardar token en una cookie HTTP-only y segura
+  
+    // Configurar la cookie correctamente
     res.cookie('token', token, {
-      httpOnly: false, // Asegura que la cookie no sea accesible desde JavaScript
-      secure: process.env.NODE_ENV === 'production', // Usa HTTPS en producción
-      sameSite: 'lax', // Importante para evitar bloqueos en navegadores modernos
-      maxAge: 3600000, // 1 hora (ajusta según sea necesario)
+      httpOnly: false, // Asegura que no sea accesible desde JavaScript
+      secure: process.env.NODE_ENV === 'production', // Solo en HTTPS en producción
+      sameSite: 'lax',
+      maxAge: 3600000, // 1 hora
     });
-
-    return res.json({ message: 'Login successful' });
+  
+    // ❌ NO USAR `res.json()` directamente
+    return { message: 'Login successful' };
   }
-
+  
   async logout(res: Response) {
     // Elimina el token de la cookie cuando el usuario cierre sesión
     res.clearCookie('token'); // Borra la cookie 'token'

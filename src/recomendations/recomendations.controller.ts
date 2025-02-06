@@ -5,60 +5,59 @@ import { RecomendationsService } from './recomendations.service';
 import { CreateRecomendationDto } from './dto/create-recomendation.dto';
 import { UpdateRecomendationDto } from './dto/update-recomendation.dto';
 import { extname } from 'path';
-import { join } from 'path';
-import { Express } from 'express';
+import * as crypto from 'crypto'; // Importa crypto para generar nombres únicos
+
 
 @Controller('recomendations')
 export class RecomendationsController {
   constructor(private recomendationsService: RecomendationsService) {}
 
-  // Función para manejar la carga de imágenes
-  private handleImageUpload(file: Express.Multer.File): string {
-    // Genera la ruta relativa para la imagen cargada
-    return file ? `/uploads/${file.filename}` : null;
-  }
-
-  // Ruta para la carga de imágenes (para vistas previas)
   @Post('upload')
   @UseInterceptors(FileInterceptor('image', {
     storage: diskStorage({
-      destination: './uploads', // La carpeta donde se guardarán las imágenes
+      destination: './uploads',
       filename: (req, file, callback) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        callback(null, uniqueSuffix + extname(file.originalname)); // Genera un nombre único para el archivo
+        // 📌 Generar nombre aleatorio
+        const randomName = crypto.randomUUID() + extname(file.originalname);
+        callback(null, randomName);
       },
     }),
   }))
   uploadFile(@UploadedFile() file: Express.Multer.File) {
-    if (file) {
-      // Retorna la URL de la imagen cargada
-      return { imgUrl: `/uploads/${file.filename}` };
+    console.log('Archivo recibido en /upload:', file);
+
+    if (!file) {
+      return { message: 'No file uploaded' };
     }
-    return { message: 'No file uploaded' };
+
+    return { imgUrl: `/uploads/${file.filename}` }; // La URL de la imagen
   }
 
-  // Ruta para crear una recomendación
+
+
+  // ✅ Crear recomendación con imagen correctamente
   @Post()
   @UseInterceptors(FileInterceptor('image', {
     storage: diskStorage({
-      destination: './uploads', // Define la carpeta de destino
+      destination: './uploads',
       filename: (req, file, callback) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        callback(null, uniqueSuffix + extname(file.originalname)); // Genera un nombre único para la imagen
+        callback(null, uniqueSuffix + extname(file.originalname));
       },
     }),
   }))
   async createRecomendation(
     @Body() data: CreateRecomendationDto,
-    @UploadedFile() file: Express.Multer.File
+    @UploadedFile() file?: Express.Multer.File
   ) {
-    if (!file) {
-      throw new Error('No file uploaded');
-    }
-    const imgUrl = await this.recomendationsService.uploadImage(file); // Usamos la función para obtener la URL de la imagen
-    return this.recomendationsService.createRecomendation({ ...data, img: imgUrl }, file); 
+    console.log('Archivo recibido en /:', file);
+
+    // 📌 Se genera correctamente la URL pública de la imagen
+    const imgUrl = file ? `http://localhost:3000/uploads/${file.filename}` : '';
+
+    return this.recomendationsService.createRecomendation({ ...data, img: imgUrl });
   }
-  
+
   @Get()
   async getAllRecomendations() {
     return this.recomendationsService.getAllRecomendations();

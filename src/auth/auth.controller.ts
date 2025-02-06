@@ -7,10 +7,11 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
-  async login(@Body() loginDto: { email: string; password: string }, @Res() res: Response) {
-    const result = await this.authService.login(loginDto, res);
-    return res.send(result);  // 👈 Asegura que la respuesta se envía correctamente
-  }
+async login(@Body() loginDto: { email: string; password: string }, @Res() res: Response) {
+  const result = await this.authService.login(loginDto, res);
+  res.send(result); // ✅ Evita `res.json()`, usa `res.send()`
+}
+
   
   @Post('logout')
   async logout(@Res() res: Response) {
