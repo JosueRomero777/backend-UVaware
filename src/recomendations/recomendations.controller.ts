@@ -1,59 +1,80 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Put, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { 
+  Controller, 
+  Get, 
+  Post, 
+  Body, 
+  Patch, 
+  Param, 
+  Delete, 
+  Put, 
+  UploadedFile, 
+  UseInterceptors, 
+  BadRequestException 
+} from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { RecomendationsService } from './recomendations.service';
 import { CreateRecomendationDto } from './dto/create-recomendation.dto';
 import { UpdateRecomendationDto } from './dto/update-recomendation.dto';
 import { extname } from 'path';
-import * as crypto from 'crypto'; // Importa crypto para generar nombres únicos
-
+import * as crypto from 'crypto';
 
 @Controller('recomendations')
 export class RecomendationsController {
   constructor(private recomendationsService: RecomendationsService) {}
 
   @Post('upload')
-  @UseInterceptors(FileInterceptor('image', {
-    storage: diskStorage({
-      destination: './uploads',
-      filename: (req, file, callback) => {
-        // 📌 Generar nombre aleatorio
-        const randomName = crypto.randomUUID() + extname(file.originalname);
-        callback(null, randomName);
-      },
+  @UseInterceptors(
+    FileInterceptor('image', {
+      storage: diskStorage({
+        destination: './uploads',
+        filename: (req, file, callback) => {
+          // Generar nombre aleatorio con longitud limitada
+          const randomName = crypto.randomUUID().slice(0, 14) + extname(file.originalname);
+          callback(null, randomName);
+        },
+      }),
     }),
-  }))
+  )
   uploadFile(@UploadedFile() file: Express.Multer.File) {
     console.log('Archivo recibido en /upload:', file);
 
     if (!file) {
-      return { message: 'No file uploaded' };
+      throw new BadRequestException('No file uploaded');
     }
 
-    return { imgUrl: `/uploads/${file.filename}` }; // La URL de la imagen
+    const imgUrl = `/uploads/${file.filename}`;
+    if (imgUrl.length > 255) {
+      throw new BadRequestException('Image URL is too long');
+    }
+
+    return { imgUrl }; // Retorna la URL de la imagen
   }
 
-
-
-  // ✅ Crear recomendación con imagen correctamente
   @Post()
-  @UseInterceptors(FileInterceptor('image', {
-    storage: diskStorage({
-      destination: './uploads',
-      filename: (req, file, callback) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        callback(null, uniqueSuffix + extname(file.originalname));
-      },
+  @UseInterceptors(
+    FileInterceptor('image', {
+      storage: diskStorage({
+        destination: './uploads',
+        filename: (req, file, callback) => {
+          // Generar nombre único para el archivo
+          const uniqueSuffix = crypto.randomUUID().slice(0, 8) + extname(file.originalname);
+          callback(null, uniqueSuffix);
+        },
+      }),
     }),
-  }))
+  )
   async createRecomendation(
     @Body() data: CreateRecomendationDto,
-    @UploadedFile() file?: Express.Multer.File
+    @UploadedFile() file?: Express.Multer.File,
   ) {
     console.log('Archivo recibido en /:', file);
 
-    // 📌 Se genera correctamente la URL pública de la imagen
+    // Generar la URL pública de la imagen
     const imgUrl = file ? `http://localhost:3000/uploads/${file.filename}` : '';
+    if (imgUrl.length > 255) {
+      throw new BadRequestException('Image URL is too long');
+    }
 
     return this.recomendationsService.createRecomendation({ ...data, img: imgUrl });
   }
@@ -69,8 +90,30 @@ export class RecomendationsController {
   }
 
   @Put(':id')
-  async updateRecomendation(@Param('id') id: string, @Body() data: UpdateRecomendationDto) {
-    return this.recomendationsService.updateRecomendation(Number(id), data);
+  @UseInterceptors(
+    FileInterceptor('image', {
+      storage: diskStorage({
+        destination: './uploads',
+        filename: (req, file, callback) => {
+          const randomName = crypto.randomUUID().slice(0, 8) + extname(file.originalname);
+          callback(null, randomName);
+        },
+      }),
+    }),
+  )
+  async updateRecomendation(
+    @Param('id') id: string,
+    @Body() data: UpdateRecomendationDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    // Si se subió una nueva imagen, actualiza la URL
+    const imgUrl = file ? `http://localhost:3000/uploads/${file.filename}` : data.img;
+
+    if (imgUrl.length > 255) {
+      throw new BadRequestException('Image URL is too long');
+    }
+
+    return this.recomendationsService.updateRecomendation(Number(id), { ...data, img: imgUrl });
   }
 
   @Delete(':id')

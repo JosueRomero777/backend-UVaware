@@ -23,6 +23,6 @@ model articles {
 model recomendations {
   idrecomendations Int     @id @default(autoincrement())
   title            String? @db.VarChar(25)
-  description      String? @db.VarChar(200)
-  img              String? @db.VarChar(255) // Cambiado a 255
+  description      String? @db.Text // Cambiado para permitir texto más largo
+  img              String? @db.VarChar(255)
 }
